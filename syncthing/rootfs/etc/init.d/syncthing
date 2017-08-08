@@ -2,15 +2,25 @@
 
 name=syncthing
 BIN=/usr/bin/syncthing
+USER=syncthing
 LOG=/var/log/syncthing.log
+CFG=/etc/syncthing
 
 start(){
-    $BIN >${LOG} 2>&1 &
-    RETVAL=$?
-    if [ "$RETVAL" = "0" ]; then
-        echo "$name start success"
+    pid=`ps -ef | grep -v grep | grep -i "${BIN}" | awk '{print $2}'`
+    if [[ -z $pid ]]; then
+        mkdir -p ${CFG}
+        chown -R $USER:$USER ${CFG}
+        runuser -l $USER -c "${BIN} -home=${CFG} -gui-address=0.0.0.0:8384" >>${LOG} 2>&1 &
+        RETVAL=$?
+        if [ "$RETVAL" = "0" ]; then
+            echo "$name start success"
+        else
+            echo "$name start failed"
+        fi
     else
-        echo "$name start failed"
+        echo "$name is running with PID $pid"
+        RETVAL=0
     fi
 }
 
