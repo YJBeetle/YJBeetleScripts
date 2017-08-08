@@ -1,0 +1,64 @@
+#!/bin/bash
+
+name=syncthing
+BIN=/usr/bin/syncthing
+LOG=/var/log/syncthing.log
+
+start(){
+    $BIN >${LOG} 2>&1 &
+    RETVAL=$?
+    if [ "$RETVAL" = "0" ]; then
+        echo "$name start success"
+    else
+        echo "$name start failed"
+    fi
+}
+
+stop(){
+    pid=`ps -ef | grep -v grep | grep -i "${BIN}" | awk '{print $2}'`
+    if [[ ! -z $pid ]]; then
+        kill $pid
+        RETVAL=$?
+        if [ "$RETVAL" = "0" ]; then
+            echo "$name stop success"
+        else
+            echo "$name stop failed"
+        fi
+    else
+        echo "$name is not running"
+        RETVAL=1
+    fi
+}
+
+status(){
+    pid=`ps -ef | grep -v grep | grep -i "${BIN}" | awk '{print $2}'`
+    if [[ -z $pid ]]; then
+        echo "$name is not running"
+        RETVAL=1
+    else
+        echo "$name is running with PID $pid"
+        RETVAL=0
+    fi
+}
+
+case "$1" in
+'start')
+    start
+    ;;
+'stop')
+    stop
+    ;;
+'status')
+    status
+    ;;
+'restart')
+    stop
+    start
+    RETVAL=$?
+    ;;
+*)
+    echo "Usage: $0 { start | stop | restart | status }"
+    RETVAL=1
+    ;;
+esac
+exit $RETVAL
