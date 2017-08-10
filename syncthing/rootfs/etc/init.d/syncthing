@@ -5,13 +5,19 @@ BIN=/usr/bin/syncthing
 USER=syncthing
 LOG=/var/log/syncthing.log
 CFG=/etc/syncthing
+PORT=8384
+PIDFILE=/var/syncthing.pid
+
+CMD="${BIN} -home=${CFG} -gui-address=0.0.0.0:${PORT}"
 
 start(){
-    pid=`ps -ef | grep -v grep | grep -i "${BIN}" | awk '{print $2}'`
+    pid=`ps -ef | grep -v grep | grep -i "${CMD}" | awk '{print $2}'`
     if [[ -z $pid ]]; then
         mkdir -p ${CFG}
         chown -R $USER:$USER ${CFG}
-        runuser -l $USER -c "${BIN} -home=${CFG} -gui-address=0.0.0.0:8384" >>${LOG} 2>&1 &
+        runuser -l $USER -c "${CMD}" >>${LOG} 2>&1 &
+        pid=$!
+        echo $pid > ${PIDFILE}
         RETVAL=$?
         if [ "$RETVAL" = "0" ]; then
             echo "$name start success"
@@ -19,15 +25,16 @@ start(){
             echo "$name start failed"
         fi
     else
-        echo "$name is running with PID $pid"
+        echo "$name is running with PID:"
+        echo "$pid"
         RETVAL=0
     fi
 }
 
 stop(){
-    pid=`ps -ef | grep -v grep | grep -i "${BIN}" | awk '{print $2}'`
+    pid=`ps -ef | grep -v grep | grep -i "${CMD}" | awk '{print $2}'`
     if [[ ! -z $pid ]]; then
-        kill $pid
+        kill -TERM $pid
         RETVAL=$?
         if [ "$RETVAL" = "0" ]; then
             echo "$name stop success"
@@ -41,12 +48,13 @@ stop(){
 }
 
 status(){
-    pid=`ps -ef | grep -v grep | grep -i "${BIN}" | awk '{print $2}'`
+    pid=`ps -ef | grep -v grep | grep -i "${CMD}" | awk '{print $2}'`
     if [[ -z $pid ]]; then
         echo "$name is not running"
         RETVAL=1
     else
-        echo "$name is running with PID $pid"
+        echo "$name is running with PID:"
+        echo "$pid"
         RETVAL=0
     fi
 }
@@ -63,6 +71,8 @@ case "$1" in
     ;;
 'restart')
     stop
+    echo "wait 5s..."
+    sleep 5
     start
     RETVAL=$?
     ;;
