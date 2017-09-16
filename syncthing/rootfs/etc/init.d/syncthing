@@ -1,84 +1,61 @@
-#!/bin/bash
+#!/bin/sh
+### BEGIN INIT INFO
+# Provides: syncthing-YJBeetle
+# Required-Start: $local_fs $remote_fs
+# Required-Stop: $local_fs $remote_fs
+# Should-Start: $network
+# Should-Stop: $network
+# Default-Start: 2 3 4 5
+# Default-Stop: 0 1 6
+# Short-Description: daemonized version of syncthing.
+# Description: Starts the syncthing daemon.
+### END INIT INFO
 
-name=syncthing
-BIN=/usr/bin/syncthing
-USER=syncthing
-LOG=/var/log/syncthing.log
-CFG=/etc/syncthing
-PORT=8384
-PIDFILE=/var/syncthing.pid
 
-CMD="${BIN} -home=${CFG} -gui-address=0.0.0.0:${PORT}"
+DAEMON=/usr/bin/syncthing
+USER=YJBeetle
+PORT=8002
 
-start(){
-    pid=`ps -ef | grep -v grep | grep -i "${CMD}" | awk '{print $2}'`
-    if [[ -z $pid ]]; then
-        mkdir -p ${CFG}
-        chown -R $USER:$USER ${CFG}
-        runuser -l $USER -c "${CMD}" >>${LOG} 2>&1 &
-        pid=$!
-        echo $pid > ${PIDFILE}
-        RETVAL=$?
-        if [ "$RETVAL" = "0" ]; then
-            echo "$name start success"
-        else
-            echo "$name start failed"
-        fi
-    else
-        echo "$name is running with PID:"
-        echo "$pid"
-        RETVAL=0
-    fi
+
+. /lib/lsb/init-functions
+
+
+wait_process()
+{
+    while kill -0 "$1" 2> /dev/null; do
+        sleep 0.5
+    done
 }
 
-stop(){
-    pid=`ps -ef | grep -v grep | grep -i "${CMD}" | awk '{print $2}'`
-    if [[ ! -z $pid ]]; then
-        kill -TERM $pid
-        RETVAL=$?
-        if [ "$RETVAL" = "0" ]; then
-            echo "$name stop success"
-        else
-            echo "$name stop failed"
-        fi
-    else
-        echo "$name is not running"
-        RETVAL=1
-    fi
+
+start()
+{
+    echo "Starting Syncthing"
+    start-stop-daemon --start --quiet -b -o -c $USER -u $USER --exec $DAEMON --umask 0002 -- -gui-address=0.0.0.0:${PORT}
 }
 
-status(){
-    pid=`ps -ef | grep -v grep | grep -i "${CMD}" | awk '{print $2}'`
-    if [[ -z $pid ]]; then
-        echo "$name is not running"
-        RETVAL=1
-    else
-        echo "$name is running with PID:"
-        echo "$pid"
-        RETVAL=0
-    fi
+
+stop()
+{
+    start-stop-daemon --stop -o -c $USER -K -u $USER -x $DAEMON
+    wait_process $(pidof $DAEMON)
 }
 
 case "$1" in
-'start')
+  start)
     start
     ;;
-'stop')
+  stop)
     stop
     ;;
-'status')
-    status
+  restart|reload|force-reload)
+      stop
+      start
     ;;
-'restart')
-    stop
-    echo "wait 5s..."
-    sleep 5
-    start
-    RETVAL=$?
-    ;;
-*)
-    echo "Usage: $0 { start | stop | restart | status }"
-    RETVAL=1
+  *)
+    echo "Usage: $0 {start|stop|restart}"
+    exit 1
     ;;
 esac
-exit $RETVAL
+
+exit 0
